@@ -20,6 +20,7 @@ import { useData } from '../context/DataContext';
 import ManageNotes from './ManageNotes';
 import ManageDPPs from './ManageDPPs';
 import BatchSubjectSelector from './BatchSubjectSelector';
+import BatchSelector from './BatchSelector';
 
 // Dashboard Overview Component
 const Dashboard = () => {
@@ -708,7 +709,7 @@ const ManageLectures = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingLecture, setEditingLecture] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedBatch, setSelectedBatch] = useState('');
+  const [selectedBatches, setSelectedBatches] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
@@ -719,17 +720,25 @@ const ManageLectures = () => {
   const resetForm = () => {
     setFormData({ title: '', subject: '', duration: '', videoUrl: '' });
     setSelectedSubject('');
-    setSelectedBatch('');
+    setSelectedBatches([]);
     setEditingLecture(null);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validate batch selection
+    if (selectedBatches.length === 0) {
+      alert('Please select at least one batch for this lecture.');
+      return;
+    }
+    
     const lectureData = {
       title: formData.title,
       subject: data.subjects.find(s => s.id === parseInt(selectedSubject))?.name?.toUpperCase() || 'GENERAL',
       duration: formData.duration,
-      videoUrl: formData.videoUrl
+      videoUrl: formData.videoUrl,
+      availableInBatches: selectedBatches
     };
 
     if (editingLecture) {
@@ -745,6 +754,7 @@ const ManageLectures = () => {
   const handleEdit = (lecture, subjectId) => {
     setEditingLecture(lecture);
     setSelectedSubject(subjectId.toString());
+    setSelectedBatches(lecture.availableInBatches || []);
     setFormData({
       title: lecture.title,
       subject: lecture.subject,
@@ -792,7 +802,8 @@ const ManageLectures = () => {
           </thead>
           <tbody>
             {allLectures.map(lecture => {
-              const subjectBatches = getBatchesBySubject(lecture.subjectId);
+              const lectureBatches = lecture.availableInBatches || [];
+              const batchDetails = data.batches.filter(batch => lectureBatches.includes(batch.id));
               return (
                 <tr key={`${lecture.subjectId}-${lecture.id}`}>
                   <td>{lecture.title}</td>
@@ -800,14 +811,14 @@ const ManageLectures = () => {
                     <span className="lecture-tag">{getSubjectName(lecture.subjectId)}</span>
                   </td>
                   <td>
-                    {subjectBatches.length > 0 ? (
+                    {batchDetails.length > 0 ? (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {subjectBatches.map(batch => (
+                        {batchDetails.map(batch => (
                           <span 
                             key={batch.id} 
                             style={{
-                              background: '#e0f2fe',
-                              color: '#0369a1',
+                              background: '#10b981',
+                              color: 'white',
                               padding: '2px 6px',
                               borderRadius: '10px',
                               fontSize: '0.7rem',
@@ -819,7 +830,7 @@ const ManageLectures = () => {
                         ))}
                       </div>
                     ) : (
-                      <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>No batches</span>
+                      <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>No batches selected</span>
                     )}
                   </td>
                   <td>{lecture.duration}</td>
@@ -847,29 +858,39 @@ const ManageLectures = () => {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <h3 style={{ marginBottom: '20px' }}>{editingLecture ? 'Edit Lecture' : 'Upload New Lecture'}</h3>
             <form onSubmit={handleSubmit}>
-              <BatchSubjectSelector
+              <div className="form-group">
+                <label className="form-label">Subject {editingLecture && '(cannot be changed)'}</label>
+                <select
+                  className="form-select"
+                  value={selectedSubject}
+                  onChange={(e) => {
+                    setSelectedSubject(e.target.value);
+                    // Reset batch selection when subject changes
+                    setSelectedBatches([]);
+                  }}
+                  required
+                  disabled={editingLecture}
+                >
+                  <option value="">Select Subject</option>
+                  {data.subjects.map(subject => {
+                    const batches = getBatchesBySubject(subject.id);
+                    return (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name} {subject.icon} ({batches.length} batch{batches.length !== 1 ? 'es' : ''})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              
+              <BatchSelector
                 selectedSubject={selectedSubject}
-                onSubjectChange={(subjectId) => {
-                  setSelectedSubject(subjectId);
-                  // Auto-select first batch for this subject if available
-                  const subjectBatches = getBatchesBySubject(parseInt(subjectId));
-                  setSelectedBatch(subjectBatches.length > 0 ? subjectBatches[0].id.toString() : '');
-                }}
-                showBatchInfo={true}
-                title={editingLecture ? "Subject (cannot be changed)" : "Select Subject & Target Batches"}
+                selectedBatches={selectedBatches}
+                onBatchesChange={setSelectedBatches}
+                title="Choose Target Batches"
+                required={true}
+                showStudentCount={true}
               />
-              {editingLecture && (
-                <div style={{
-                  padding: '10px',
-                  background: '#fef3c7',
-                  borderRadius: '6px',
-                  marginBottom: '15px',
-                  fontSize: '0.9rem',
-                  color: '#92400e'
-                }}>
-                  📝 Note: Subject cannot be changed when editing a lecture
-                </div>
-              )}
               <div className="form-group">
                 <label className="form-label">Lecture Title</label>
                 <input

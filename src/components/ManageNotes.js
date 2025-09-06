@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Eye, Upload } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import BatchSelector from './BatchSelector';
 
 const ManageNotes = () => {
   // Use global data context
@@ -9,6 +10,7 @@ const ManageNotes = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedBatches, setSelectedBatches] = useState([]);
   const [uploadError, setUploadError] = useState('');
 
   // Subject options for filtering
@@ -52,11 +54,17 @@ const ManageNotes = () => {
       return;
     }
 
+    if (selectedBatches.length === 0) {
+      setUploadError('Please select at least one batch for this note.');
+      return;
+    }
+
     // Create new note using context
     const noteData = {
       title: newNoteTitle,
       type: 'PDF',
-      fileName: selectedFile.name
+      fileName: selectedFile.name,
+      availableInBatches: selectedBatches
     };
 
     addNote(selectedSubject, noteData);
@@ -65,6 +73,7 @@ const ManageNotes = () => {
     setShowUploadModal(false);
     setNewNoteTitle('');
     setSelectedFile(null);
+    setSelectedBatches([]);
     setUploadError('');
 
     // Display success message (in real app, you'd actually upload the file to a server)
@@ -126,7 +135,8 @@ const ManageNotes = () => {
             {currentSubjectNotes.length > 0 ? (
               currentSubjectNotes.map(note => {
                 const subjectName = data.subjects.find(s => s.id === selectedSubject)?.name;
-                const subjectBatches = getBatchesBySubject(selectedSubject);
+                const noteBatches = note.availableInBatches || [];
+                const batchDetails = data.batches.filter(batch => noteBatches.includes(batch.id));
                 
                 return (
                   <tr key={note.id}>
@@ -135,14 +145,14 @@ const ManageNotes = () => {
                       <span className="lecture-tag">{subjectName}</span>
                     </td>
                     <td>
-                      {subjectBatches.length > 0 ? (
+                      {batchDetails.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {subjectBatches.map(batch => (
+                          {batchDetails.map(batch => (
                             <span 
                               key={batch.id} 
                               style={{
-                                background: '#e0f2fe',
-                                color: '#0369a1',
+                                background: '#10b981',
+                                color: 'white',
                                 padding: '2px 6px',
                                 borderRadius: '10px',
                                 fontSize: '0.7rem',
@@ -154,7 +164,7 @@ const ManageNotes = () => {
                           ))}
                         </div>
                       ) : (
-                        <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>No batches</span>
+                        <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>No batches selected</span>
                       )}
                     </td>
                     <td>{note.type}</td>
@@ -226,43 +236,14 @@ const ManageNotes = () => {
                 })}
               </select>
             </div>
-            <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label>Available in Batches</label>
-              <div style={{
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                padding: '10px',
-                backgroundColor: '#f9fafb'
-              }}>
-                {(() => {
-                  const subjectBatches = getBatchesBySubject(selectedSubject);
-                  return subjectBatches.length > 0 ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {subjectBatches.map(batch => (
-                        <span 
-                          key={batch.id} 
-                          style={{
-                            background: '#10b981',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.8rem',
-                            fontWeight: '500'
-                          }}
-                        >
-                          {batch.name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>
-                      This subject is not assigned to any batches yet. Students in these batches won't be able to access this note.
-                    </p>
-                  );
-                })()
-                }
-              </div>
-            </div>
+            <BatchSelector
+              selectedSubject={selectedSubject}
+              selectedBatches={selectedBatches}
+              onBatchesChange={setSelectedBatches}
+              title="Choose Target Batches for Notes"
+              required={true}
+              showStudentCount={true}
+            />
 
             <div className="form-group" style={{ marginBottom: '15px' }}>
               <label>Upload PDF File</label>
@@ -304,6 +285,7 @@ const ManageNotes = () => {
                   setShowUploadModal(false);
                   setNewNoteTitle('');
                   setSelectedFile(null);
+                  setSelectedBatches([]);
                   setUploadError('');
                 }}
               >
