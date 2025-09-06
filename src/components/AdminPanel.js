@@ -19,6 +19,7 @@ import {
 import { useData } from '../context/DataContext';
 import ManageNotes from './ManageNotes';
 import ManageDPPs from './ManageDPPs';
+import BatchSubjectSelector from './BatchSubjectSelector';
 
 // Dashboard Overview Component
 const Dashboard = () => {
@@ -846,68 +847,27 @@ const ManageLectures = () => {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <h3 style={{ marginBottom: '20px' }}>{editingLecture ? 'Edit Lecture' : 'Upload New Lecture'}</h3>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label className="form-label">Batch & Subject</label>
-                <select
-                  className="form-select"
-                  value={selectedSubject}
-                  onChange={(e) => {
-                    setSelectedSubject(e.target.value);
-                    // Auto-select first batch for this subject if available
-                    const subjectBatches = getBatchesBySubject(parseInt(e.target.value));
-                    setSelectedBatch(subjectBatches.length > 0 ? subjectBatches[0].id.toString() : '');
-                  }}
-                  required
-                  disabled={editingLecture} // Don't allow changing subject when editing
-                >
-                  <option value="">Select Subject</option>
-                  {data.subjects.map(subject => {
-                    const batches = getBatchesBySubject(subject.id);
-                    return (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name} {batches.length > 0 ? `(${batches.length} batch${batches.length > 1 ? 'es' : ''})` : '(No batches)'}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-              {selectedSubject && (
-                <div className="form-group">
-                  <label className="form-label">Available in Batches</label>
-                  <div style={{
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    padding: '10px',
-                    backgroundColor: '#f9fafb'
-                  }}>
-                    {(() => {
-                      const subjectBatches = getBatchesBySubject(parseInt(selectedSubject));
-                      return subjectBatches.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {subjectBatches.map(batch => (
-                            <span 
-                              key={batch.id} 
-                              style={{
-                                background: '#10b981',
-                                color: 'white',
-                                padding: '4px 8px',
-                                borderRadius: '12px',
-                                fontSize: '0.8rem',
-                                fontWeight: '500'
-                              }}
-                            >
-                              {batch.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>
-                          This subject is not assigned to any batches yet. Assign it to batches from the Manage Subjects section.
-                        </p>
-                      );
-                    })()
-                    }
-                  </div>
+              <BatchSubjectSelector
+                selectedSubject={selectedSubject}
+                onSubjectChange={(subjectId) => {
+                  setSelectedSubject(subjectId);
+                  // Auto-select first batch for this subject if available
+                  const subjectBatches = getBatchesBySubject(parseInt(subjectId));
+                  setSelectedBatch(subjectBatches.length > 0 ? subjectBatches[0].id.toString() : '');
+                }}
+                showBatchInfo={true}
+                title={editingLecture ? "Subject (cannot be changed)" : "Select Subject & Target Batches"}
+              />
+              {editingLecture && (
+                <div style={{
+                  padding: '10px',
+                  background: '#fef3c7',
+                  borderRadius: '6px',
+                  marginBottom: '15px',
+                  fontSize: '0.9rem',
+                  color: '#92400e'
+                }}>
+                  📝 Note: Subject cannot be changed when editing a lecture
                 </div>
               )}
               <div className="form-group">

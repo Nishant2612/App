@@ -5,6 +5,7 @@ import BatchDashboard from './components/BatchDashboard';
 import SubjectDashboard from './components/SubjectDashboard';
 import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
+import SyncStatus from './components/SyncStatus';
 import { DataProvider } from './context/DataContext';
 import './index.css';
 
@@ -30,6 +31,7 @@ function App() {
     <DataProvider>
       <Router>
         <div className="App">
+          <SyncStatus />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/batch/:batchId" element={<BatchDashboard />} />
