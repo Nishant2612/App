@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Eye, Upload } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import BatchSelector from './BatchSelector';
+import { useToast, ToastContainer } from './Toast';
 
 const ManageNotes = () => {
   // Use global data context
-  const { data, addNote, deleteNote, getBatchesBySubject } = useData();
+  const { data, addNote, updateNote, deleteNote, getBatchesBySubject } = useData();
+  const { toasts, showSuccess, showError, removeToast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedBatches, setSelectedBatches] = useState([]);
@@ -43,7 +47,7 @@ const ManageNotes = () => {
   };
 
   // Handle note upload
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!newNoteTitle.trim()) {
       setUploadError('Please enter a title for the note.');
       return;
@@ -59,32 +63,86 @@ const ManageNotes = () => {
       return;
     }
 
-    // Create new note using context
-    const noteData = {
-      title: newNoteTitle,
-      type: 'PDF',
-      fileName: selectedFile.name,
-      availableInBatches: selectedBatches
-    };
+    try {
+      // Create new note using context
+      const noteData = {
+        title: newNoteTitle,
+        type: 'PDF',
+        fileName: selectedFile.name,
+        availableInBatches: selectedBatches
+      };
 
-    addNote(selectedSubject, noteData);
+      await addNote(selectedSubject, noteData);
 
-    // Close modal and reset form
-    setShowUploadModal(false);
-    setNewNoteTitle('');
-    setSelectedFile(null);
-    setSelectedBatches([]);
-    setUploadError('');
+      // Close modal and reset form
+      setShowUploadModal(false);
+      setNewNoteTitle('');
+      setSelectedFile(null);
+      setSelectedBatches([]);
+      setUploadError('');
 
-    // Display success message (in real app, you'd actually upload the file to a server)
-    alert('Note uploaded successfully!');
+      // Display success message
+      showSuccess('Note uploaded successfully!');
+    } catch (error) {
+      showError('Failed to upload note. Please try again.');
+    }
+  };
+
+  // Handle note editing
+  const handleEditNote = (note) => {
+    setEditingNote(note);
+    setNewNoteTitle(note.title);
+    setSelectedBatches(note.availableInBatches || []);
+    setShowEditModal(true);
+  };
+
+  // Handle edit save
+  const handleSaveEdit = async () => {
+    if (!newNoteTitle.trim()) {
+      setUploadError('Please enter a title for the note.');
+      return;
+    }
+
+    if (selectedBatches.length === 0) {
+      setUploadError('Please select at least one batch for this note.');
+      return;
+    }
+
+    try {
+      await updateNote(selectedSubject, editingNote.id, {
+        title: newNoteTitle,
+        availableInBatches: selectedBatches
+      });
+
+      // Close modal and reset form
+      setShowEditModal(false);
+      setEditingNote(null);
+      setNewNoteTitle('');
+      setSelectedBatches([]);
+      setUploadError('');
+
+      showSuccess('Note updated successfully!');
+    } catch (error) {
+      showError('Failed to update note. Please try again.');
+    }
   };
 
   // Handle note deletion
-  const handleDeleteNote = (noteId) => {
+  const handleDeleteNote = async (noteId) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
-      deleteNote(selectedSubject, noteId);
+      try {
+        await deleteNote(selectedSubject, noteId);
+        showSuccess('Note deleted successfully!');
+      } catch (error) {
+        showError('Failed to delete note. Please try again.');
+      }
     }
+  };
+
+  // Handle note viewing/download
+  const handleViewNote = (note) => {
+    // In a real application, this would open the PDF or trigger a download
+    alert(`Viewing note: ${note.title}\nFile: ${note.fileName}\n\nIn a real application, this would open the PDF file.`);
   };
 
   // Get current subject's notes
@@ -92,6 +150,7 @@ const ManageNotes = () => {
 
   return (
     <div>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: '700' }}>Manage Lecture Notes</h2>
         <button 
@@ -171,16 +230,27 @@ const ManageNotes = () => {
                     <td>{note.addedOn}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn" style={{ padding: '6px 10px', background: '#f3f4f6' }}>
+                        <button 
+                          className="btn" 
+                          style={{ padding: '6px 10px', background: '#f3f4f6' }}
+                          onClick={() => handleViewNote(note)}
+                          title="View Note"
+                        >
                           <Eye size={16} />
                         </button>
-                        <button className="btn" style={{ padding: '6px 10px', background: '#fef3c7' }}>
+                        <button 
+                          className="btn" 
+                          style={{ padding: '6px 10px', background: '#fef3c7' }}
+                          onClick={() => handleEditNote(note)}
+                          title="Edit Note"
+                        >
                           <Edit size={16} />
                         </button>
                         <button 
                           className="btn" 
                           style={{ padding: '6px 10px', background: '#fee2e2' }}
                           onClick={() => handleDeleteNote(note.id)}
+                          title="Delete Note"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -296,6 +366,72 @@ const ManageNotes = () => {
                 onClick={handleUpload}
               >
                 Upload Note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingNote && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ marginBottom: '20px' }}>Edit Note</h3>
+            
+            <div className="form-group" style={{ marginBottom: '15px' }}>
+              <label htmlFor="editNoteTitle">Note Title</label>
+              <input
+                type="text"
+                id="editNoteTitle"
+                className="form-input"
+                placeholder="Enter note title"
+                value={newNoteTitle}
+                onChange={(e) => setNewNoteTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '15px' }}>
+              <label>Current File: {editingNote.fileName}</label>
+              <div style={{
+                padding: '10px',
+                background: '#f3f4f6',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                color: '#6b7280'
+              }}>
+                Note: File replacement is not implemented in this demo. Only title and batch assignment can be edited.
+              </div>
+            </div>
+
+            <BatchSelector
+              selectedSubject={selectedSubject}
+              selectedBatches={selectedBatches}
+              onBatchesChange={setSelectedBatches}
+              title="Update Target Batches for Notes"
+              required={true}
+              showStudentCount={true}
+            />
+
+            {uploadError && <p style={{ color: 'red', marginTop: '5px' }}>{uploadError}</p>}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button 
+                className="btn"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingNote(null);
+                  setNewNoteTitle('');
+                  setSelectedBatches([]);
+                  setUploadError('');
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={handleSaveEdit}
+              >
+                Save Changes
               </button>
             </div>
           </div>

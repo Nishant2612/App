@@ -82,14 +82,28 @@ const initialData = {
 
 class FirebaseDataService {
   constructor() {
-    this.dataRef = ref(database, 'eduverse-data');
+    this.database = database;
+    this.dataRef = database ? ref(database, 'eduverse-data') : null;
     this.listeners = [];
     this.isInitialized = false;
+    this.isFirebaseAvailable = !!database;
   }
 
   // Initialize data if it doesn't exist
   async initializeData() {
     if (this.isInitialized) return;
+    
+    if (!this.isFirebaseAvailable || !this.dataRef) {
+      // Firebase not available, use localStorage only
+      console.log('Firebase not available, using localStorage fallback');
+      const localData = localStorage.getItem('eduverse-data');
+      if (!localData) {
+        localStorage.setItem('eduverse-data', JSON.stringify(initialData));
+        console.log('Initialized localStorage with sample data');
+      }
+      this.isInitialized = true;
+      return;
+    }
     
     try {
       const snapshot = await get(this.dataRef);
@@ -109,13 +123,33 @@ class FirebaseDataService {
           console.log('Migrated localStorage data to Firebase');
         } catch (migrationError) {
           console.error('Error migrating localStorage data:', migrationError);
+          // If migration also fails, just use localStorage
+          this.isFirebaseAvailable = false;
         }
+      } else {
+        // No local data either, create initial data
+        localStorage.setItem('eduverse-data', JSON.stringify(initialData));
+        console.log('Created initial data in localStorage');
+        this.isFirebaseAvailable = false;
       }
+      this.isInitialized = true;
     }
   }
 
   // Subscribe to data changes with automatic sync to localStorage as backup
   subscribeToData(callback) {
+    if (!this.isFirebaseAvailable || !this.dataRef) {
+      // Firebase not available, use localStorage only
+      const localData = localStorage.getItem('eduverse-data');
+      if (localData) {
+        callback(JSON.parse(localData));
+      } else {
+        callback(initialData);
+      }
+      // Return a dummy unsubscribe function
+      return () => {};
+    }
+
     const listener = onValue(this.dataRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -144,6 +178,17 @@ class FirebaseDataService {
 
   // Generic update method with offline support
   async updateData(updates) {
+    if (!this.isFirebaseAvailable || !this.dataRef) {
+      // Firebase not available, use localStorage only
+      const currentLocal = localStorage.getItem('eduverse-data');
+      if (currentLocal) {
+        const localData = JSON.parse(currentLocal);
+        const updatedData = { ...localData, ...updates };
+        localStorage.setItem('eduverse-data', JSON.stringify(updatedData));
+      }
+      return;
+    }
+
     try {
       await update(this.dataRef, updates);
       // Also update localStorage immediately for better responsiveness

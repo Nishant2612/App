@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Upload, BookOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Play } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import BatchSelector from './BatchSelector';
 import { useToast, ToastContainer } from './Toast';
 
-const ManageDPPs = () => {
+const ManageLectures = () => {
   // Use global data context
-  const { data, addDpp, updateDpp, deleteDpp, getBatchesBySubject } = useData();
+  const { data, addLecture, updateLecture, deleteLecture, getBatchesBySubject } = useData();
   const { toasts, showSuccess, showError, removeToast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingDpp, setEditingDpp] = useState(null);
-  const [newDppTitle, setNewDppTitle] = useState('');
-  const [numQuestions, setNumQuestions] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [editingLecture, setEditingLecture] = useState(null);
+  const [newLectureTitle, setNewLectureTitle] = useState('');
+  const [lectureDuration, setLectureDuration] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [selectedBatches, setSelectedBatches] = useState([]);
   const [uploadError, setUploadError] = useState('');
 
@@ -24,157 +24,146 @@ const ManageDPPs = () => {
     name: subject.name
   }));
 
-  // Handle file selection
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (file.type !== 'application/pdf') {
-        setUploadError('Only PDF files are allowed.');
-        setSelectedFile(null);
-        return;
-      }
-      
-      // Validate file size (max 15MB for DPPs as they might be larger)
-      if (file.size > 15 * 1024 * 1024) {
-        setUploadError('File size should not exceed 15MB.');
-        setSelectedFile(null);
-        return;
-      }
-      
-      setSelectedFile(file);
-      setUploadError('');
-    }
-  };
-
-  // Handle DPP upload
+  // Handle lecture upload
   const handleUpload = async () => {
-    if (!newDppTitle.trim()) {
-      setUploadError('Please enter a title for the DPP.');
+    if (!newLectureTitle.trim()) {
+      setUploadError('Please enter a title for the lecture.');
       return;
     }
 
-    if (!numQuestions || isNaN(numQuestions) || parseInt(numQuestions) <= 0) {
-      setUploadError('Please enter a valid number of questions.');
+    if (!videoUrl.trim()) {
+      setUploadError('Please enter a video URL.');
       return;
     }
 
-    if (!selectedFile) {
-      setUploadError('Please select a PDF file to upload.');
+    if (!lectureDuration.trim()) {
+      setUploadError('Please enter the lecture duration.');
       return;
     }
 
     if (selectedBatches.length === 0) {
-      setUploadError('Please select at least one batch for this DPP.');
+      setUploadError('Please select at least one batch for this lecture.');
       return;
     }
 
     try {
-      // Create new DPP using context
-      const dppData = {
-        title: newDppTitle,
-        questions: parseInt(numQuestions),
-        fileName: selectedFile.name,
-        type: 'PDF',
+      // Create new lecture using context
+      const lectureData = {
+        title: newLectureTitle,
+        subject: data.subjects.find(s => s.id === selectedSubject)?.name.toUpperCase(),
+        duration: lectureDuration,
+        videoUrl: videoUrl,
         availableInBatches: selectedBatches
       };
 
-      await addDpp(selectedSubject, dppData);
+      await addLecture(selectedSubject, lectureData);
 
       // Close modal and reset form
       setShowUploadModal(false);
-      setNewDppTitle('');
-      setNumQuestions('');
-      setSelectedFile(null);
+      setNewLectureTitle('');
+      setLectureDuration('');
+      setVideoUrl('');
       setSelectedBatches([]);
       setUploadError('');
 
       // Display success message
-      showSuccess('DPP uploaded successfully!');
+      showSuccess('Lecture uploaded successfully!');
     } catch (error) {
-      showError('Failed to upload DPP. Please try again.');
+      showError('Failed to upload lecture. Please try again.');
     }
   };
 
-  // Handle DPP editing
-  const handleEditDpp = (dpp) => {
-    setEditingDpp(dpp);
-    setNewDppTitle(dpp.title);
-    setNumQuestions(dpp.questions.toString());
-    setSelectedBatches(dpp.availableInBatches || []);
+  // Handle lecture editing
+  const handleEditLecture = (lecture) => {
+    setEditingLecture(lecture);
+    setNewLectureTitle(lecture.title);
+    setLectureDuration(lecture.duration);
+    setVideoUrl(lecture.videoUrl);
+    setSelectedBatches(lecture.availableInBatches || []);
     setShowEditModal(true);
   };
 
   // Handle edit save
   const handleSaveEdit = async () => {
-    if (!newDppTitle.trim()) {
-      setUploadError('Please enter a title for the DPP.');
+    if (!newLectureTitle.trim()) {
+      setUploadError('Please enter a title for the lecture.');
       return;
     }
 
-    if (!numQuestions || isNaN(numQuestions) || parseInt(numQuestions) <= 0) {
-      setUploadError('Please enter a valid number of questions.');
+    if (!videoUrl.trim()) {
+      setUploadError('Please enter a video URL.');
+      return;
+    }
+
+    if (!lectureDuration.trim()) {
+      setUploadError('Please enter the lecture duration.');
       return;
     }
 
     if (selectedBatches.length === 0) {
-      setUploadError('Please select at least one batch for this DPP.');
+      setUploadError('Please select at least one batch for this lecture.');
       return;
     }
 
     try {
-      await updateDpp(selectedSubject, editingDpp.id, {
-        title: newDppTitle,
-        questions: parseInt(numQuestions),
+      await updateLecture(selectedSubject, editingLecture.id, {
+        title: newLectureTitle,
+        duration: lectureDuration,
+        videoUrl: videoUrl,
         availableInBatches: selectedBatches
       });
 
       // Close modal and reset form
       setShowEditModal(false);
-      setEditingDpp(null);
-      setNewDppTitle('');
-      setNumQuestions('');
+      setEditingLecture(null);
+      setNewLectureTitle('');
+      setLectureDuration('');
+      setVideoUrl('');
       setSelectedBatches([]);
       setUploadError('');
 
-      showSuccess('DPP updated successfully!');
+      showSuccess('Lecture updated successfully!');
     } catch (error) {
-      showError('Failed to update DPP. Please try again.');
+      showError('Failed to update lecture. Please try again.');
     }
   };
 
-  // Handle DPP deletion
-  const handleDeleteDpp = async (dppId) => {
-    if (window.confirm('Are you sure you want to delete this DPP?')) {
+  // Handle lecture deletion
+  const handleDeleteLecture = async (lectureId) => {
+    if (window.confirm('Are you sure you want to delete this lecture?')) {
       try {
-        await deleteDpp(selectedSubject, dppId);
-        showSuccess('DPP deleted successfully!');
+        await deleteLecture(selectedSubject, lectureId);
+        showSuccess('Lecture deleted successfully!');
       } catch (error) {
-        showError('Failed to delete DPP. Please try again.');
+        showError('Failed to delete lecture. Please try again.');
       }
     }
   };
 
-  // Handle DPP viewing/download
-  const handleViewDpp = (dpp) => {
-    // In a real application, this would open the PDF or trigger a download
-    alert(`Viewing DPP: ${dpp.title}\nFile: ${dpp.fileName}\nQuestions: ${dpp.questions}\n\nIn a real application, this would open the PDF file.`);
+  // Handle lecture viewing
+  const handleViewLecture = (lecture) => {
+    // In a real application, this would open the video player or redirect to the video
+    if (lecture.videoUrl) {
+      window.open(lecture.videoUrl, '_blank');
+    } else {
+      alert(`Viewing lecture: ${lecture.title}\nDuration: ${lecture.duration}\n\nIn a real application, this would open the video player.`);
+    }
   };
 
-  // Get current subject's DPPs
-  const currentSubjectDpps = data.dpps[selectedSubject] || [];
+  // Get current subject's lectures
+  const currentSubjectLectures = data.lectures[selectedSubject] || [];
 
   return (
     <div>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: '700' }}>Manage Daily Practice Papers (DPPs)</h2>
+        <h2 style={{ fontSize: '2rem', fontWeight: '700' }}>Manage Lectures</h2>
         <button 
           className="btn btn-primary"
           onClick={() => setShowUploadModal(true)}
         >
           <Plus size={20} />
-          Upload New DPP
+          Add New Lecture
         </button>
       </div>
 
@@ -198,27 +187,27 @@ const ManageDPPs = () => {
         <table className="table">
           <thead>
             <tr>
-              <th>DPP Title</th>
+              <th>Title</th>
               <th>Subject</th>
               <th>Available in Batches</th>
-              <th>Questions</th>
-              <th>Added On</th>
+              <th>Duration</th>
+              <th>Upload Date</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {currentSubjectDpps.length > 0 ? (
-              currentSubjectDpps.map(dpp => {
+            {currentSubjectLectures.length > 0 ? (
+              currentSubjectLectures.map(lecture => {
                 const subjectName = data.subjects.find(s => s.id === selectedSubject)?.name;
-                const dppBatches = dpp.availableInBatches || [];
-                const batchDetails = data.batches.filter(batch => dppBatches.includes(batch.id));
+                const lectureBatches = lecture.availableInBatches || [];
+                const batchDetails = data.batches.filter(batch => lectureBatches.includes(batch.id));
                 
                 return (
-                  <tr key={dpp.id}>
+                  <tr key={lecture.id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <BookOpen size={16} style={{ color: '#6366f1' }} />
-                        {dpp.title}
+                        <Play size={16} style={{ color: '#ef4444' }} />
+                        {lecture.title}
                       </div>
                     </td>
                     <td>
@@ -256,33 +245,33 @@ const ManageDPPs = () => {
                         fontSize: '0.8rem', 
                         fontWeight: '500' 
                       }}>
-                        {dpp.questions} Questions
+                        {lecture.duration}
                       </span>
                     </td>
-                    <td>{dpp.addedOn}</td>
+                    <td>{lecture.uploadDate}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
                           className="btn" 
                           style={{ padding: '6px 10px', background: '#f3f4f6' }}
-                          onClick={() => handleViewDpp(dpp)}
-                          title="View DPP"
+                          onClick={() => handleViewLecture(lecture)}
+                          title="View Lecture"
                         >
                           <Eye size={16} />
                         </button>
                         <button 
                           className="btn" 
                           style={{ padding: '6px 10px', background: '#fef3c7' }}
-                          onClick={() => handleEditDpp(dpp)}
-                          title="Edit DPP"
+                          onClick={() => handleEditLecture(lecture)}
+                          title="Edit Lecture"
                         >
                           <Edit size={16} />
                         </button>
                         <button 
                           className="btn" 
                           style={{ padding: '6px 10px', background: '#fee2e2' }}
-                          onClick={() => handleDeleteDpp(dpp.id)}
-                          title="Delete DPP"
+                          onClick={() => handleDeleteLecture(lecture.id)}
+                          title="Delete Lecture"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -294,7 +283,7 @@ const ManageDPPs = () => {
             ) : (
               <tr>
                 <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
-                  No DPPs found for this subject. Click "Upload New DPP" to add some.
+                  No lectures found for this subject. Click "Add New Lecture" to add some.
                 </td>
               </tr>
             )}
@@ -306,17 +295,17 @@ const ManageDPPs = () => {
       {showUploadModal && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: '500px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Upload New DPP</h3>
+            <h3 style={{ marginBottom: '20px' }}>Add New Lecture</h3>
             
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label htmlFor="dppTitle">DPP Title</label>
+              <label htmlFor="lectureTitle">Lecture Title</label>
               <input
                 type="text"
-                id="dppTitle"
+                id="lectureTitle"
                 className="form-input"
-                placeholder="e.g., Algebra - Practice Set 1"
-                value={newDppTitle}
-                onChange={(e) => setNewDppTitle(e.target.value)}
+                placeholder="e.g., Quadrilaterals L1"
+                value={newLectureTitle}
+                onChange={(e) => setNewLectureTitle(e.target.value)}
               />
             </div>
 
@@ -338,73 +327,53 @@ const ManageDPPs = () => {
                 })}
               </select>
             </div>
+
             <BatchSelector
               selectedSubject={selectedSubject}
               selectedBatches={selectedBatches}
               onBatchesChange={setSelectedBatches}
-              title="Choose Target Batches for DPP"
+              title="Choose Target Batches for Lecture"
               required={true}
               showStudentCount={true}
             />
 
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label htmlFor="numQuestions">Number of Questions</label>
+              <label htmlFor="duration">Duration</label>
               <input
-                type="number"
-                id="numQuestions"
+                type="text"
+                id="duration"
                 className="form-input"
-                placeholder="e.g., 25"
-                value={numQuestions}
-                onChange={(e) => setNumQuestions(e.target.value)}
-                min="1"
-                max="100"
+                placeholder="e.g., 45 min"
+                value={lectureDuration}
+                onChange={(e) => setLectureDuration(e.target.value)}
               />
             </div>
 
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label>Upload DPP PDF File</label>
-              <div 
-                style={{ 
-                  border: '2px dashed #d1d5db', 
-                  padding: '20px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: '#f9fafb'
-                }}
-                onClick={() => document.getElementById('dppFile').click()}
-              >
-                <Upload size={40} style={{ margin: '0 auto 10px', color: '#6b7280' }} />
-                <p style={{ margin: 0 }}>
-                  {selectedFile ? selectedFile.name : 'Click to select or drag & drop a PDF file'}
-                </p>
-                <p style={{ margin: '5px 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
-                  Maximum file size: 15MB
-                </p>
-                <input
-                  type="file"
-                  id="dppFile"
-                  accept=".pdf"
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
+              <label htmlFor="videoUrl">Video URL</label>
+              <input
+                type="url"
+                id="videoUrl"
+                className="form-input"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+              />
+              <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '5px' }}>
+                Supports YouTube, Vimeo, or direct video links
               </div>
-              {uploadError && <p style={{ color: 'red', marginTop: '5px' }}>{uploadError}</p>}
-              {selectedFile && (
-                <div style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-                  Selected file: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
-                </div>
-              )}
             </div>
+
+            {uploadError && <p style={{ color: 'red', marginTop: '5px' }}>{uploadError}</p>}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
               <button 
                 className="btn"
                 onClick={() => {
                   setShowUploadModal(false);
-                  setNewDppTitle('');
-                  setNumQuestions('');
-                  setSelectedFile(null);
+                  setNewLectureTitle('');
+                  setLectureDuration('');
+                  setVideoUrl('');
                   setSelectedBatches([]);
                   setUploadError('');
                 }}
@@ -415,7 +384,7 @@ const ManageDPPs = () => {
                 className="btn btn-primary"
                 onClick={handleUpload}
               >
-                Upload DPP
+                Add Lecture
               </button>
             </div>
           </div>
@@ -423,55 +392,52 @@ const ManageDPPs = () => {
       )}
 
       {/* Edit Modal */}
-      {showEditModal && editingDpp && (
+      {showEditModal && editingLecture && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: '500px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Edit DPP</h3>
+            <h3 style={{ marginBottom: '20px' }}>Edit Lecture</h3>
             
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label htmlFor="editDppTitle">DPP Title</label>
+              <label htmlFor="editLectureTitle">Lecture Title</label>
               <input
                 type="text"
-                id="editDppTitle"
+                id="editLectureTitle"
                 className="form-input"
-                placeholder="e.g., Algebra - Practice Set 1"
-                value={newDppTitle}
-                onChange={(e) => setNewDppTitle(e.target.value)}
+                placeholder="e.g., Quadrilaterals L1"
+                value={newLectureTitle}
+                onChange={(e) => setNewLectureTitle(e.target.value)}
               />
             </div>
 
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label htmlFor="editNumQuestions">Number of Questions</label>
+              <label htmlFor="editDuration">Duration</label>
               <input
-                type="number"
-                id="editNumQuestions"
+                type="text"
+                id="editDuration"
                 className="form-input"
-                placeholder="e.g., 25"
-                value={numQuestions}
-                onChange={(e) => setNumQuestions(e.target.value)}
-                min="1"
-                max="100"
+                placeholder="e.g., 45 min"
+                value={lectureDuration}
+                onChange={(e) => setLectureDuration(e.target.value)}
               />
             </div>
 
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label>Current File: {editingDpp.fileName}</label>
-              <div style={{
-                padding: '10px',
-                background: '#f3f4f6',
-                borderRadius: '4px',
-                fontSize: '0.9rem',
-                color: '#6b7280'
-              }}>
-                Note: File replacement is not implemented in this demo. Only title, questions count, and batch assignment can be edited.
-              </div>
+              <label htmlFor="editVideoUrl">Video URL</label>
+              <input
+                type="url"
+                id="editVideoUrl"
+                className="form-input"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+              />
             </div>
 
             <BatchSelector
               selectedSubject={selectedSubject}
               selectedBatches={selectedBatches}
               onBatchesChange={setSelectedBatches}
-              title="Update Target Batches for DPP"
+              title="Update Target Batches for Lecture"
               required={true}
               showStudentCount={true}
             />
@@ -483,9 +449,10 @@ const ManageDPPs = () => {
                 className="btn"
                 onClick={() => {
                   setShowEditModal(false);
-                  setEditingDpp(null);
-                  setNewDppTitle('');
-                  setNumQuestions('');
+                  setEditingLecture(null);
+                  setNewLectureTitle('');
+                  setLectureDuration('');
+                  setVideoUrl('');
                   setSelectedBatches([]);
                   setUploadError('');
                 }}
@@ -506,4 +473,4 @@ const ManageDPPs = () => {
   );
 };
 
-export default ManageDPPs;
+export default ManageLectures;

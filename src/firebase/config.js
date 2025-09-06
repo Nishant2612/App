@@ -2,23 +2,38 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 
-// Your Firebase config - Replace with your actual config
-// Get this from Firebase Console -> Project Settings -> General -> Your apps -> Firebase SDK snippet
-const firebaseConfig = {
-  // Replace these with your actual Firebase config values
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com", 
-  databaseURL: "https://your-project-default-rtdb.firebaseio.com/",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
-};
+// Firebase configuration with fallback
+let firebaseConfig;
+let app = null;
+let database = null;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+try {
+  // Try to use environment variables first, then fallback to placeholder
+  firebaseConfig = {
+    apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "demo-api-key",
+    authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "demo-project.firebaseapp.com", 
+    databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://demo-project-default-rtdb.firebaseio.com/",
+    projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "demo-project-id",
+    storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "demo-project.appspot.com",
+    messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
+    appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef123456"
+  };
 
-// Initialize Realtime Database and get a reference to the service
-export const database = getDatabase(app);
+  // Only initialize Firebase if we have real config (not demo values)
+  const hasRealConfig = !firebaseConfig.apiKey.includes('demo') && 
+                       !firebaseConfig.authDomain.includes('demo');
+  
+  if (hasRealConfig) {
+    app = initializeApp(firebaseConfig);
+    database = getDatabase(app);
+    console.log('Firebase initialized successfully');
+  } else {
+    console.warn('Firebase not configured, using local storage fallback');
+  }
+} catch (error) {
+  console.warn('Firebase initialization failed, using local storage fallback:', error);
+}
+
+export { database };
 
 export default app;

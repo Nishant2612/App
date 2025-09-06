@@ -434,6 +434,7 @@ const ManageSubjects = () => {
   const { data, addSubject, updateSubject, deleteSubject, getBatchesBySubject, addSubjectToBatch, removeSubjectFromBatch } = useData();
   const [showModal, setShowModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     icon: '',
@@ -460,51 +461,83 @@ const ManageSubjects = () => {
   const resetForm = () => {
     setFormData({ name: '', icon: '', class: '', selectedBatches: [] });
     setEditingSubject(null);
+    setIsSubmitting(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate form data
+    if (!formData.name.trim()) {
+      alert('Please enter a subject name.');
+      return;
+    }
+    
+    if (!formData.icon.trim()) {
+      alert('Please enter a subject icon.');
+      return;
+    }
+    
+    if (!formData.class) {
+      alert('Please select a subject category.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     const subjectData = {
-      name: formData.name,
-      icon: formData.icon,
+      name: formData.name.trim(),
+      icon: formData.icon.trim(),
       class: formData.class
     };
     
-    let subjectId;
-    if (editingSubject) {
-      updateSubject(editingSubject.id, subjectData);
-      subjectId = editingSubject.id;
-      
-      // Update batch-subject relationships for existing subject
-      const currentBatches = getBatchesBySubject(subjectId);
-      const currentBatchIds = currentBatches.map(b => b.id);
-      
-      // Remove subject from batches that are no longer selected
-      currentBatchIds.forEach(batchId => {
-        if (!formData.selectedBatches.includes(batchId)) {
-          removeSubjectFromBatch(batchId, subjectId);
+    try {
+      let subjectId;
+      if (editingSubject) {
+        await updateSubject(editingSubject.id, subjectData);
+        subjectId = editingSubject.id;
+        
+        // Update batch-subject relationships for existing subject
+        const currentBatches = getBatchesBySubject(subjectId);
+        const currentBatchIds = currentBatches.map(b => b.id);
+        
+        // Remove subject from batches that are no longer selected
+        for (const batchId of currentBatchIds) {
+          if (!formData.selectedBatches.includes(batchId)) {
+            await removeSubjectFromBatch(batchId, subjectId);
+          }
         }
-      });
-      
-      // Add subject to newly selected batches
-      formData.selectedBatches.forEach(batchId => {
-        if (!currentBatchIds.includes(batchId)) {
-          addSubjectToBatch(batchId, subjectId);
+        
+        // Add subject to newly selected batches
+        for (const batchId of formData.selectedBatches) {
+          if (!currentBatchIds.includes(batchId)) {
+            await addSubjectToBatch(batchId, subjectId);
+          }
         }
-      });
-    } else {
-      const newSubject = addSubject(subjectData);
-      subjectId = newSubject.id;
+      } else {
+        const newSubject = await addSubject(subjectData);
+        subjectId = newSubject.id;
+        
+        // Add subject to selected batches for new subject
+        for (const batchId of formData.selectedBatches) {
+          await addSubjectToBatch(batchId, subjectId);
+        }
+      }
       
-      // Add subject to selected batches for new subject
-      formData.selectedBatches.forEach(batchId => {
-        addSubjectToBatch(batchId, subjectId);
-      });
+      setShowModal(false);
+      resetForm();
+      
+      // Show success message
+      alert(editingSubject 
+        ? `Subject "${subjectData.name}" updated successfully!${formData.selectedBatches.length > 0 ? ` Assigned to ${formData.selectedBatches.length} batch(es).` : ''}` 
+        : `Subject "${subjectData.name}" created successfully!${formData.selectedBatches.length > 0 ? ` Assigned to ${formData.selectedBatches.length} batch(es).` : ''}`
+      );
+    } catch (error) {
+      console.error('Error saving subject:', error);
+      alert('Failed to save subject. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setShowModal(false);
-    resetForm();
   };
 
   const handleEdit = (subject) => {
@@ -529,7 +562,10 @@ const ManageSubjects = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: '700' }}>Manage Subjects</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={() => {
+          resetForm();
+          setShowModal(true);
+        }}>
           <Plus size={20} />
           Add New Subject
         </button>
@@ -644,55 +680,156 @@ const ManageSubjects = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Available in Batches</label>
+                <label className="form-label">
+                  Available in Batches
+                  {formData.selectedBatches.length > 0 && (
+                    <span style={{ 
+                      color: '#10b981', 
+                      fontSize: '0.8rem', 
+                      fontWeight: 'normal', 
+                      marginLeft: '8px' 
+                    }}>
+                      ({formData.selectedBatches.length} selected)
+                    </span>
+                  )}
+                </label>
                 <div style={{ 
-                  maxHeight: '150px', 
+                  maxHeight: '200px', 
                   overflowY: 'auto', 
                   border: '1px solid #d1d5db', 
                   borderRadius: '6px', 
-                  padding: '10px' 
+                  padding: '10px',
+                  backgroundColor: '#f9fafb' 
                 }}>
                   {data.batches.length > 0 ? (
-                    data.batches.map(batch => (
-                      <div key={batch.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                        <input
-                          type="checkbox"
-                          id={`batch-${batch.id}`}
-                          checked={formData.selectedBatches.includes(batch.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData(prev => ({
-                                ...prev,
-                                selectedBatches: [...prev.selectedBatches, batch.id]
-                              }));
-                            } else {
-                              setFormData(prev => ({
-                                ...prev,
-                                selectedBatches: prev.selectedBatches.filter(id => id !== batch.id)
-                              }));
-                            }
-                          }}
-                          style={{ marginRight: '8px' }}
-                        />
-                        <label htmlFor={`batch-${batch.id}`} style={{ fontSize: '0.9rem', cursor: 'pointer' }}>
-                          {batch.name} (Class {batch.class})
-                        </label>
-                      </div>
-                    ))
+                    <>
+                      {/* Select All / Deselect All */}
+                      {data.batches.length > 1 && (
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          marginBottom: '12px',
+                          paddingBottom: '8px',
+                          borderBottom: '1px solid #e5e7eb'
+                        }}>
+                          <input
+                            type="checkbox"
+                            id="select-all-batches"
+                            checked={formData.selectedBatches.length === data.batches.length}
+                            indeterminate={formData.selectedBatches.length > 0 && formData.selectedBatches.length < data.batches.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedBatches: data.batches.map(batch => batch.id)
+                                }));
+                              } else {
+                                setFormData(prev => ({ ...prev, selectedBatches: [] }));
+                              }
+                            }}
+                            style={{ marginRight: '8px' }}
+                          />
+                          <label htmlFor="select-all-batches" style={{ 
+                            fontSize: '0.85rem', 
+                            cursor: 'pointer',
+                            fontWeight: '500',
+                            color: '#374151'
+                          }}>
+                            {formData.selectedBatches.length === data.batches.length ? 'Deselect All' : 'Select All'}
+                          </label>
+                        </div>
+                      )}
+                      
+                      {/* Individual Batch Selection */}
+                      {data.batches.map(batch => {
+                        const isSelected = formData.selectedBatches.includes(batch.id);
+                        return (
+                          <div key={batch.id} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            marginBottom: '10px',
+                            padding: '8px',
+                            borderRadius: '4px',
+                            backgroundColor: isSelected ? '#ecfdf5' : 'white',
+                            border: `1px solid ${isSelected ? '#10b981' : '#e5e7eb'}`,
+                            transition: 'all 0.2s ease'
+                          }}>
+                            <input
+                              type="checkbox"
+                              id={`batch-${batch.id}`}
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedBatches: [...prev.selectedBatches, batch.id]
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedBatches: prev.selectedBatches.filter(id => id !== batch.id)
+                                  }));
+                                }
+                              }}
+                              style={{ marginRight: '10px' }}
+                            />
+                            <label htmlFor={`batch-${batch.id}`} style={{ 
+                              fontSize: '0.9rem', 
+                              cursor: 'pointer',
+                              color: isSelected ? '#065f46' : '#374151',
+                              fontWeight: isSelected ? '500' : 'normal',
+                              flex: 1
+                            }}>
+                              <div>
+                                <span>{batch.name}</span>
+                                <div style={{
+                                  fontSize: '0.75rem',
+                                  color: isSelected ? '#047857' : '#6b7280',
+                                  marginTop: '2px'
+                                }}>
+                                  Class {batch.class} • {batch.students} students
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </>
                   ) : (
-                    <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>No batches available</p>
+                    <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0, padding: '20px', textAlign: 'center' }}>
+                      No batches available. Create batches first to assign subjects to them.
+                    </p>
                   )}
                 </div>
-                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '5px' }}>
-                  Select the batches where this subject will be available. You can also assign subjects to batches later from the Manage Batches section.
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '8px' }}>
+                  {formData.selectedBatches.length > 0 
+                    ? `This subject will be available to ${data.batches.filter(b => formData.selectedBatches.includes(b.id)).reduce((sum, batch) => sum + batch.students, 0)} students across ${formData.selectedBatches.length} batch${formData.selectedBatches.length > 1 ? 'es' : ''}.`
+                    : 'Select the batches where this subject will be available. You can also assign subjects to batches later from the Manage Batches section.'
+                  }
                 </p>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                <button type="button" className="btn" onClick={() => { setShowModal(false); resetForm(); }}>
+                <button 
+                  type="button" 
+                  className="btn" 
+                  onClick={() => { setShowModal(false); resetForm(); }}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingSubject ? 'Update Subject' : 'Add Subject'}
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                  style={{
+                    opacity: isSubmitting ? 0.7 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSubmitting 
+                    ? (editingSubject ? 'Updating...' : 'Creating...') 
+                    : (editingSubject ? 'Update Subject' : 'Add Subject')
+                  }
                 </button>
               </div>
             </form>
@@ -782,7 +919,10 @@ const ManageLectures = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: '700' }}>Manage Lectures</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={() => {
+          resetForm();
+          setShowModal(true);
+        }}>
           <Plus size={20} />
           Upload New Lecture
         </button>
