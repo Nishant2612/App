@@ -1,6 +1,20 @@
-# EduVerse 2.0 - Modern Educational Web Application
+# EduVerse 2.0 - Modern Educational Platform
 
-A clean, minimal, and professional learning platform designed for students of Class 9, Class 10, and Class 11. Features a comprehensive admin panel and user-friendly interface.
+A comprehensive educational web application built with React, featuring **real-time synchronization** and **advanced batch-specific content management**.
+
+## 🆕 Latest Updates
+
+### 🚀 v2.1.0 - Batch Selection System
+- ✅ **Selective Content Distribution**: Admins can choose specific batches for each piece of content
+- ✅ **Visual Batch Selector**: Interactive UI for selecting target batches  
+- ✅ **Student Impact Preview**: See exactly how many students will receive content
+- ✅ **Enhanced Tables**: Green badges show selected batches vs all available batches
+
+### 📡 v2.0.0 - Real-Time Sync
+- ✅ **Firebase Realtime Database** integration for instant updates across all devices
+- ✅ **Offline-first approach** with localStorage backup
+- ✅ **Live sync status** indicators showing online/offline state
+- ✅ **Zero data loss** with automatic conflict resolution
 
 ## 🚀 Features
 
@@ -47,9 +61,11 @@ A clean, minimal, and professional learning platform designed for students of Cl
 ## 🛠️ Tech Stack
 
 - **React** 18.2.0 - Frontend framework
-- **React Router** 6.8.1 - Client-side routing
+- **React Router** 6.8.1 - Client-side routing  
+- **Firebase** - Realtime Database for cross-device synchronization
 - **Lucide React** - Modern icon library
 - **CSS3** - Custom styling with modern features
+- **Context API** - State management with real-time updates
 
 ## 📁 Project Structure
 
@@ -64,29 +80,51 @@ app/
 │   │   ├── BatchDashboard.js    # Subject selection screen
 │   │   ├── SubjectDashboard.js  # Lectures/Notes/DPPs screen
 │   │   ├── AdminLogin.js        # Admin authentication
-│   │   └── AdminPanel.js        # Complete admin dashboard
+│   │   ├── AdminPanel.js        # Complete admin dashboard
+│   │   ├── BatchSelector.js     # 🆕 Visual batch selection component
+│   │   ├── BatchSubjectSelector.js # 🆕 Subject/batch relationship UI
+│   │   ├── SyncStatus.js        # 🆕 Real-time sync status indicator
+│   │   ├── ManageNotes.js       # Enhanced with batch selection
+│   │   ├── ManageDPPs.js        # Enhanced with batch selection
+│   │   └── VideoPlayer.js       # Video lecture player
+│   ├── context/
+│   │   └── DataContext.js       # 🔄 Enhanced with Firebase sync
+│   ├── firebase/                # 🆕 Firebase integration
+│   │   ├── config.js           # Firebase configuration
+│   │   └── dataService.js      # Real-time data operations
 │   ├── App.js                   # Main app with routing
 │   ├── index.js                 # React app entry point
 │   └── index.css                # Global styles
 ├── package.json
+├── FIREBASE_SETUP.md           # 🆕 Firebase setup guide
+├── SOLUTION_SUMMARY.md         # 🆕 Complete feature overview
 └── README.md
 ```
 
 ## 🚀 Getting Started
 
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+### 1. Install Dependencies
+```bash
+npm install
+```
 
-2. **Start Development Server**
-   ```bash
-   npm start
-   ```
+### 2. Configure Firebase (Required for Real-time Sync)
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Enable Realtime Database
+3. Copy your config from Project Settings
+4. Update `src/firebase/config.js` with your credentials
 
-3. **Access the Application**
-   - User Interface: `http://localhost:3000`
-   - Admin Access: Press `Ctrl+Enter` on homepage or use key `26127`
+**📄 See detailed setup instructions in `FIREBASE_SETUP.md`**
+
+### 3. Start Development Server
+```bash
+npm start
+```
+
+### 4. Access the Application
+- **User Interface**: `http://localhost:3000`
+- **Admin Access**: Press `Ctrl+Enter` on homepage or use key `26127`
+- **Real-time sync**: Works across all devices once Firebase is configured
 
 ## 🔐 Admin Access
 
@@ -118,14 +156,20 @@ app/
 - Quick action buttons
 
 ### Management Sections
-- **Batches**: Create/edit learning batches with pricing
-- **Subjects**: Add subjects with icons and organize topics
-- **Lectures**: Upload video content with metadata
-- **Notes**: Manage downloadable PDF materials  
-- **DPPs**: Create practice problem sets
+- **Batches**: Create/edit learning batches with pricing and subject assignments
+- **Subjects**: Add subjects with icons and assign to specific batches
+- **Lectures**: Upload video content with **batch-specific targeting** 🆕
+- **Notes**: Manage downloadable PDF materials for **selected batches** 🆕  
+- **DPPs**: Create practice problem sets for **chosen batches** 🆕
 - **Students**: View enrollment and progress data
 - **Analytics**: Performance reports and insights
 - **Settings**: System configuration options
+
+### 🆕 New Batch Selection Features
+- **Visual Batch Selector**: Click to select/deselect target batches
+- **Student Impact Preview**: See exactly how many students will receive content
+- **Smart Validation**: Ensures at least one batch is selected
+- **Real-time Feedback**: Green badges show selected batches vs available batches
 
 ## 📊 Sample Data
 
@@ -196,6 +240,38 @@ This project is created for educational purposes. Feel free to use and modify as
 
 For support or questions about EduVerse 2.0, please contact the development team.
 
+## 🔄 Real-Time Synchronization
+
+### How It Works:
+- **Admin makes changes** → Instantly synced to Firebase
+- **All devices receive updates** → Real-time across all users  
+- **Offline changes saved** → Synced when connection restored
+- **No data loss** → Automatic backup to localStorage
+
+### Status Indicators:
+- 🟢 **Online**: Connected and syncing
+- 🟡 **Offline**: Working offline, will sync later
+- ⏳ **Loading**: Initializing connection
+
+### Multi-Device Testing:
+1. Open admin panel on Device A
+2. Open student app on Device B  
+3. Add content from Device A
+4. Watch it appear instantly on Device B ✨
+
+## 🎯 Admin Workflow with Batch Selection
+
+### Adding Content (New Process):
+1. **Select Subject** → Choose the subject for your content
+2. **Choose Target Batches** → Use visual selector to pick specific batches
+3. **Preview Impact** → See student count and batch names affected
+4. **Upload Content** → Content delivered only to selected batches
+
+### Visual Indicators:
+- 🟢 **Green badges**: Selected/assigned batches
+- 🟡 **Yellow warning**: No batches selected
+- 📈 **Student count**: Total students who will receive content
+
 ---
 
-**EduVerse 2.0** - Empowering education through modern technology! 🎓✨
+**EduVerse 2.0** - Empowering education with real-time collaboration and targeted content delivery! 🎓✨
